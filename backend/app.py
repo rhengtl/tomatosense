@@ -14,7 +14,8 @@ BASE_DIR      = Path(__file__).parent
 FRONTEND_DIR  = BASE_DIR.parent / "frontend"
 PIPELINE_PATH = BASE_DIR / "models" / "pipeline.pkl"
 
-ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
+ALLOWED_TYPES    = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 pipeline: dict | None = None
 predictions_log: deque = deque(maxlen=50)
@@ -104,6 +105,8 @@ async def predict(file: UploadFile = File(...)):
         )
 
     raw = await file.read()
+    if len(raw) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
     arr = np.frombuffer(raw, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:
