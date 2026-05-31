@@ -26,6 +26,15 @@
     </div>
   </nav>
 
+  <!-- Model-not-loaded banner -->
+  {% if not model_loaded %}
+  <div class="bg-yellow-50 border-b border-yellow-200 py-2 px-4 text-center text-sm text-yellow-700">
+    Model not loaded &mdash; run
+    <code class="bg-yellow-100 rounded px-1 font-mono text-xs">.venv\Scripts\python backend\train_model.py</code>
+    then restart the server. Predictions will not work.
+  </div>
+  {% endif %}
+
   <!-- Page content -->
   <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
     {% block content %}{% endblock %}

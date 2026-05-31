@@ -16,42 +16,6 @@ PIPELINE_PATH = BASE_DIR / "models" / "pipeline.pkl"
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
-# Evaluation results reproduced directly from the notebook run.
-ANALYTICS_DATA = {
-    "kernel_comparison": {
-        "kernels":    ["Linear", "RBF", "Polynomial"],
-        "accuracies": [92.50, 87.50, 55.00],
-        "best":       "Linear",
-    },
-    "classification_report": {
-        "Unripe":   {"precision": 0.9474, "recall": 0.9000, "f1": 0.9231, "support": 40},
-        "Ripe":     {"precision": 0.9048, "recall": 0.9500, "f1": 0.9268, "support": 40},
-        "accuracy": 0.9250,
-    },
-    # rows = actual class, cols = predicted class  [[TN, FP], [FN, TP]]
-    "confusion_matrix": [[36, 4], [2, 38]],
-    "trials": {
-        "accuracies": [
-            87.5, 87.5, 87.5, 100.0, 87.5, 100.0, 100.0, 87.5,
-            87.5, 100.0, 75.0, 100.0, 75.0, 100.0, 100.0, 100.0,
-            87.5, 87.5, 100.0, 100.0,
-        ],
-        "mean": 92.50,
-        "std":  8.51,
-        "min":  75.00,
-        "max":  100.00,
-    },
-    "dataset": {
-        "total":             400,
-        "ripe":              200,
-        "unripe":            200,
-        "pca_components":    100,
-        "explained_variance": 99.7,
-        "img_size":          64,
-        "sources":           ["sumn2u/riped-and-unriped-tomato-dataset", "nexuswho/tomatofruits"],
-    },
-}
-
 pipeline: dict | None = None
 predictions_log: deque = deque(maxlen=50)
 
@@ -65,8 +29,10 @@ async def lifespan(app: FastAPI):
         print(f"Pipeline loaded — test accuracy: {acc}")
     else:
         print("No pipeline.pkl found. Run: .venv/Scripts/python backend/train_model.py")
+    templates.env.globals["model_loaded"] = pipeline is not None
     yield
     pipeline = None
+    templates.env.globals["model_loaded"] = False
 
 
 app = FastAPI(title="TomatoSense", version="1.0.0", lifespan=lifespan)
@@ -77,6 +43,7 @@ app.mount(
     name="static",
 )
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
+templates.env.filters["zip"] = zip
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +62,9 @@ def health():
 
 @app.get("/analytics-data")
 def analytics_data():
-    return ANALYTICS_DATA
+    if pipeline is None:
+        raise HTTPException(status_code=503, detail="Model not loaded.")
+    return pipeline["analytics"]
 
 
 @app.get("/stats")
@@ -201,4 +170,23 @@ def analytics_page(request: Request):
 
 @app.get("/about")
 def about_page(request: Request):
-    return templates.TemplateResponse("about.html", {"request": request})
+    about_info = None
+    if pipeline:
+        analytics  = pipeline["analytics"]
+        kc         = analytics["kernel_comparison"]
+        cr         = analytics["classification_report"]
+        tr         = analytics["trials"]
+        about_info = {
+            "accuracy":           f"{pipeline['test_accuracy'] * 100:.2f}%",
+            "kernel":             pipeline["kernel"].capitalize(),
+            "trial_mean":         f"{tr['mean']}%",
+            "macro_precision":    f"{(cr['Unripe']['precision'] + cr['Ripe']['precision']) / 2 * 100:.2f}%",
+            "macro_recall":       f"{(cr['Unripe']['recall']    + cr['Ripe']['recall'])    / 2 * 100:.2f}%",
+            "macro_f1":           f"{(cr['Unripe']['f1']        + cr['Ripe']['f1'])        / 2 * 100:.2f}%",
+            "kernels":            kc["kernels"],
+            "kernel_accuracies":  kc["accuracies"],
+            "best_kernel":        kc["best"],
+        }
+    return templates.TemplateResponse(
+        "about.html", {"request": request, "about_info": about_info}
+    )
