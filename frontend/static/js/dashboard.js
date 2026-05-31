@@ -34,7 +34,7 @@
       <span class="text-sm font-semibold text-gray-700 w-14 text-right shrink-0">
         ${prediction.confidence}%
       </span>
-      <span class="text-xs text-gray-400 w-16 text-right shrink-0">
+      <span class="hidden sm:block text-xs text-gray-400 w-16 text-right shrink-0">
         ${timeAgo(prediction.timestamp)}
       </span>
     `;

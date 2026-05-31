@@ -8,7 +8,7 @@
 
   <!-- ── Upload zone ─────────────────────────────────────────── -->
   <div id="drop-zone"
-       class="relative border-2 border-dashed border-gray-300 rounded-xl p-10
+       class="relative border-2 border-dashed border-gray-300 rounded-xl p-6 sm:p-10
               flex flex-col items-center justify-center gap-3 cursor-pointer
               transition-colors hover:border-red-400 hover:bg-red-50"
        role="button" aria-label="Upload image">
@@ -17,7 +17,8 @@
            class="absolute inset-0 opacity-0 cursor-pointer" />
 
     <span class="text-5xl select-none">🍅</span>
-    <p class="text-gray-600 font-medium">Drop an image here, or <span class="text-red-600 underline">browse</span></p>
+    <p class="text-gray-600 font-medium sm:hidden">Tap to select an image</p>
+    <p class="text-gray-600 font-medium hidden sm:block">Drop an image here, or <span class="text-red-600 underline">browse</span></p>
     <p class="text-xs text-gray-400">JPEG · PNG · WEBP · BMP</p>
   </div>
 
