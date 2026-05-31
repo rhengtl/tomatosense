@@ -53,6 +53,7 @@ MANIFEST
 profile_default/
 ipython_config.py
 *.nbconvert.ipynb
+notebook/
 
 # =============================================================
 # DATASET & RAW DATA
