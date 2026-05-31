@@ -1,0 +1,5 @@
+/* Active nav link highlight — added by main.js based on current path */
+.nav-link.active {
+  color: #dc2626; /* red-600 */
+  font-weight: 600;
+}

@@ -124,6 +124,7 @@ frontend/dist/
 frontend/.next/
 frontend/out/
 static/
+!frontend/static/
 .parcel-cache/
 
 # =============================================================
