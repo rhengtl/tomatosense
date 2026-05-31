@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}TomatoSense{% endblock %}</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body class="min-h-screen flex flex-col bg-gray-50 text-gray-800">
+
+  <!-- Navbar -->
+  <nav class="bg-white border-b border-gray-200 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2 text-red-600 font-bold text-xl tracking-tight">
+        <span>🍅</span>
+        <span>TomatoSense</span>
+      </a>
+      <ul class="flex items-center gap-6 text-sm font-medium text-gray-600">
+        <li><a href="/"          class="nav-link hover:text-red-600 transition-colors">Dashboard</a></li>
+        <li><a href="/classify"  class="nav-link hover:text-red-600 transition-colors">Classify</a></li>
+        <li><a href="/analytics" class="nav-link hover:text-red-600 transition-colors">Analytics</a></li>
+        <li><a href="/about"     class="nav-link hover:text-red-600 transition-colors">About</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- Page content -->
+  <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-gray-200 text-center text-xs text-gray-400 py-4">
+    TomatoSense &mdash; SVM Ripeness Classifier
+  </footer>
+
+  <script src="/static/js/main.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

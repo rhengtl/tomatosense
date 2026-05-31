@@ -82,6 +82,13 @@ datasets/
 models/
 saved_models/
 checkpoints/
+backend/models/
+
+# =============================================================
+# NBCONVERT LEFTOVER ASSET DIRECTORIES
+# =============================================================
+*_files/
+colab_export_debug_files/
 
 # =============================================================
 # NOTEBOOK-GENERATED OUTPUTS
