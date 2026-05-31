@@ -2,11 +2,111 @@
 {% block title %}Classify — TomatoSense{% endblock %}
 
 {% block content %}
-<div class="text-center py-16">
-  <h1 class="text-3xl font-bold text-gray-800 mb-3">Classify</h1>
-  <p class="text-gray-500">Upload a tomato image to get a ripeness prediction.</p>
-  <p class="mt-4 text-sm text-yellow-600 bg-yellow-50 border border-yellow-200 rounded px-4 py-2 inline-block">
-    Model not yet loaded — coming in Step 2.
-  </p>
+<div class="max-w-2xl mx-auto">
+  <h1 class="text-2xl font-bold text-gray-800 mb-1">Classify a Tomato</h1>
+  <p class="text-gray-500 text-sm mb-6">Upload a photo and the model will predict whether the tomato is ripe or unripe.</p>
+
+  <!-- ── Upload zone ─────────────────────────────────────────── -->
+  <div id="drop-zone"
+       class="relative border-2 border-dashed border-gray-300 rounded-xl p-10
+              flex flex-col items-center justify-center gap-3 cursor-pointer
+              transition-colors hover:border-red-400 hover:bg-red-50"
+       role="button" aria-label="Upload image">
+
+    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp"
+           class="absolute inset-0 opacity-0 cursor-pointer" />
+
+    <span class="text-5xl select-none">🍅</span>
+    <p class="text-gray-600 font-medium">Drop an image here, or <span class="text-red-600 underline">browse</span></p>
+    <p class="text-xs text-gray-400">JPEG · PNG · WEBP · BMP</p>
+  </div>
+
+  <!-- ── Preview + classify ──────────────────────────────────── -->
+  <div id="preview-section" class="hidden mt-6 flex flex-col items-center gap-4">
+    <div class="relative">
+      <img id="preview-img" src="" alt="Preview"
+           class="w-48 h-48 object-cover rounded-xl shadow-md border-4 border-gray-200" />
+      <button id="remove-btn" title="Remove"
+              class="absolute -top-2 -right-2 bg-white border border-gray-200 rounded-full
+                     w-6 h-6 flex items-center justify-center text-gray-400
+                     hover:text-red-500 hover:border-red-400 transition-colors text-sm leading-none">
+        ✕
+      </button>
+    </div>
+    <p id="file-name" class="text-xs text-gray-400 truncate max-w-xs"></p>
+    <button id="classify-btn"
+            class="bg-red-600 text-white px-8 py-2.5 rounded-lg font-semibold
+                   hover:bg-red-700 active:scale-95 transition-all disabled:opacity-50">
+      Classify
+    </button>
+  </div>
+
+  <!-- ── Loading spinner ─────────────────────────────────────── -->
+  <div id="loading" class="hidden mt-8 flex flex-col items-center gap-3 text-gray-500">
+    <svg class="animate-spin h-8 w-8 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+    </svg>
+    <p class="text-sm">Analysing image…</p>
+  </div>
+
+  <!-- ── Result card ─────────────────────────────────────────── -->
+  <div id="result-card" class="hidden mt-6 bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
+    <div id="result-header" class="px-6 py-4 flex items-center justify-between">
+      <div>
+        <p class="text-xs uppercase tracking-widest font-semibold text-white/80 mb-1">Prediction</p>
+        <p id="result-label" class="text-3xl font-bold text-white"></p>
+      </div>
+      <div class="text-right">
+        <p class="text-xs uppercase tracking-widest font-semibold text-white/80 mb-1">Confidence</p>
+        <p id="result-confidence" class="text-3xl font-bold text-white"></p>
+      </div>
+    </div>
+
+    <div class="px-6 py-4 bg-gray-50 space-y-3">
+      <!-- Ripe bar -->
+      <div>
+        <div class="flex justify-between text-xs text-gray-500 mb-1">
+          <span>Ripe</span>
+          <span id="prob-ripe-pct"></span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div id="prob-ripe-bar" class="bg-red-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+        </div>
+      </div>
+      <!-- Unripe bar -->
+      <div>
+        <div class="flex justify-between text-xs text-gray-500 mb-1">
+          <span>Unripe</span>
+          <span id="prob-unripe-pct"></span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div id="prob-unripe-bar" class="bg-green-500 h-2 rounded-full transition-all duration-500" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="px-6 py-3 bg-white border-t border-gray-100 flex justify-end">
+      <button id="reset-btn"
+              class="text-sm text-gray-500 hover:text-red-600 font-medium transition-colors">
+        ← Classify another
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Error message ───────────────────────────────────────── -->
+  <div id="error-box"
+       class="hidden mt-6 bg-red-50 border border-red-200 rounded-xl px-5 py-4 flex items-start gap-3">
+    <span class="text-red-400 text-lg mt-0.5">⚠</span>
+    <div>
+      <p class="font-semibold text-red-700 text-sm">Something went wrong</p>
+      <p id="error-msg" class="text-red-600 text-sm mt-0.5"></p>
+      <button id="error-reset-btn" class="mt-2 text-xs text-red-500 underline hover:text-red-700">Try again</button>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/classify.js"></script>
 {% endblock %}
