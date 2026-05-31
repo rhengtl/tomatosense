@@ -2,12 +2,90 @@
 {% block title %}Dashboard — TomatoSense{% endblock %}
 
 {% block content %}
-<div class="text-center py-16">
-  <h1 class="text-3xl font-bold text-gray-800 mb-3">Dashboard</h1>
-  <p class="text-gray-500">Overview and recent predictions will appear here.</p>
+
+<!-- ── Hero ──────────────────────────────────────────────────────────────── -->
+<div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-10 mb-8
+            flex flex-col sm:flex-row items-center justify-between gap-6">
+  <div>
+    <h1 class="text-3xl font-bold text-gray-800 mb-2">🍅 TomatoSense</h1>
+    <p class="text-gray-500 max-w-md">
+      Upload a tomato photo and get an instant ripeness prediction powered by a
+      Support Vector Machine trained on 400 real tomato images.
+    </p>
+  </div>
   <a href="/classify"
-     class="mt-6 inline-block bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 transition-colors">
-    Classify a Tomato
+     class="shrink-0 bg-red-600 text-white px-7 py-3 rounded-xl font-semibold
+            hover:bg-red-700 active:scale-95 transition-all shadow">
+    Classify a Tomato →
   </a>
 </div>
+
+<!-- ── Model info cards (server-side) ────────────────────────────────────── -->
+<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Model</h2>
+
+{% if model_info %}
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">Test Accuracy</p>
+    <p class="text-2xl font-bold text-gray-800">{{ model_info.accuracy }}</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">Kernel</p>
+    <p class="text-2xl font-bold text-gray-800">{{ model_info.kernel }}</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">PCA Components</p>
+    <p class="text-2xl font-bold text-gray-800">{{ model_info.pca_components }}</p>
+  </div>
+
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">Variance Retained</p>
+    <p class="text-2xl font-bold text-gray-800">{{ model_info.explained_variance }}</p>
+  </div>
+
+</div>
+{% else %}
+<div class="mb-8 bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 text-sm text-yellow-700">
+  Model not loaded. Run <code class="font-mono bg-yellow-100 px-1 rounded">backend/train_model.py</code> then restart the server.
+</div>
+{% endif %}
+
+<!-- ── Live prediction stats (client-side) ────────────────────────────────── -->
+<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+  Session Activity
+  <span class="ml-2 text-gray-300 font-normal normal-case tracking-normal">(resets on server restart)</span>
+</h2>
+
+<div class="grid grid-cols-3 gap-4 mb-8">
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">Total Predictions</p>
+    <p id="stat-total" class="text-2xl font-bold text-gray-800">—</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">🔴 Ripe</p>
+    <p id="stat-ripe" class="text-2xl font-bold text-red-600">—</p>
+  </div>
+  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
+    <p class="text-xs text-gray-400 mb-1">🟢 Unripe</p>
+    <p id="stat-unripe" class="text-2xl font-bold text-green-600">—</p>
+  </div>
+</div>
+
+<!-- ── Recent predictions ─────────────────────────────────────────────────── -->
+<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Recent Predictions</h2>
+
+<div id="recent-list" class="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50">
+  <div id="recent-empty" class="px-6 py-8 text-center text-gray-400 text-sm">
+    No predictions yet this session.
+    <a href="/classify" class="text-red-500 hover:underline ml-1">Classify a tomato →</a>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/dashboard.js"></script>
 {% endblock %}

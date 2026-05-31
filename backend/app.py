@@ -1,4 +1,6 @@
+from collections import deque
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 import cv2
@@ -15,6 +17,7 @@ PIPELINE_PATH = BASE_DIR / "models" / "pipeline.pkl"
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
 pipeline: dict | None = None
+predictions_log: deque = deque(maxlen=50)
 
 
 @asynccontextmanager
@@ -54,6 +57,28 @@ def health():
     return info
 
 
+@app.get("/stats")
+def stats():
+    log = list(predictions_log)
+    ripe_count   = sum(1 for p in log if p["label_index"] == 1)
+    unripe_count = sum(1 for p in log if p["label_index"] == 0)
+    recent = [
+        {
+            "label":      p["label"],
+            "label_index": p["label_index"],
+            "confidence": p["confidence"],
+            "timestamp":  p["timestamp"],
+        }
+        for p in reversed(log)
+    ][:5]
+    return {
+        "total":        len(log),
+        "ripe_count":   ripe_count,
+        "unripe_count": unripe_count,
+        "recent":       recent,
+    }
+
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     if pipeline is None:
@@ -77,13 +102,12 @@ async def predict(file: UploadFile = File(...)):
             detail="Could not decode image. The file may be corrupted.",
         )
 
-    img_size = pipeline["img_size"]
-    img_rgb  = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    img_size    = pipeline["img_size"]
+    img_rgb     = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     img_resized = cv2.resize(img_rgb, (img_size, img_size), interpolation=cv2.INTER_AREA)
 
-    X = img_resized.astype(np.float32) / 255.0
-    X = X.reshape(1, -1)
-
+    X        = img_resized.astype(np.float32) / 255.0
+    X        = X.reshape(1, -1)
     X_scaled = pipeline["scaler"].transform(X)
     X_pca    = pipeline["pca"].transform(X_scaled)
 
@@ -91,7 +115,7 @@ async def predict(file: UploadFile = File(...)):
     proba     = pipeline["model"].predict_proba(X_pca)[0]
     classes   = pipeline["classes"]
 
-    return {
+    result = {
         "label":       classes[label_idx],
         "label_index": label_idx,
         "confidence":  round(float(proba[label_idx]) * 100, 2),
@@ -99,7 +123,10 @@ async def predict(file: UploadFile = File(...)):
             classes[0]: round(float(proba[0]) * 100, 2),
             classes[1]: round(float(proba[1]) * 100, 2),
         },
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
+    predictions_log.append(result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +135,17 @@ async def predict(file: UploadFile = File(...)):
 
 @app.get("/")
 def dashboard(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    model_info = None
+    if pipeline:
+        model_info = {
+            "accuracy":          f"{pipeline['test_accuracy'] * 100:.2f}%",
+            "kernel":            pipeline["kernel"].capitalize(),
+            "pca_components":    pipeline["n_components"],
+            "explained_variance": f"{pipeline['explained_variance']}%",
+        }
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "model_info": model_info}
+    )
 
 
 @app.get("/classify")
