@@ -79,10 +79,12 @@ datasets/
 *.pth
 *.onnx
 *.pb
-models/
 saved_models/
 checkpoints/
-backend/models/
+# Ignore everything inside backend/models/ except the committed files below
+backend/models/*
+!backend/models/.gitkeep
+!backend/models/pipeline.pkl
 
 # =============================================================
 # NBCONVERT LEFTOVER ASSET DIRECTORIES
