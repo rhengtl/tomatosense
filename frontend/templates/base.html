@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}TomatoSense{% endblock %}</title>
 
+  <!-- Favicon -->
+  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml" />
+
+  <!-- Open Graph / link preview -->
+  <meta property="og:type"        content="website" />
+  <meta property="og:site_name"   content="TomatoSense" />
+  <meta property="og:title"       content="{% block og_title %}TomatoSense — Tomato Ripeness Classifier{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Upload a tomato photo and get an instant ripeness prediction powered by a Support Vector Machine trained on 400 real images.{% endblock %}" />
+  <meta property="og:image"       content="{{ request.base_url }}static/img/og-image.png" />
+  <meta property="og:url"         content="{{ request.base_url }}" />
+
+  <!-- Twitter / X card -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:title"       content="{% block tw_title %}TomatoSense — Tomato Ripeness Classifier{% endblock %}" />
+  <meta name="twitter:description" content="{% block tw_description %}Upload a tomato photo and get an instant ripeness prediction powered by a Support Vector Machine trained on 400 real images.{% endblock %}" />
+  <meta name="twitter:image"       content="{{ request.base_url }}static/img/og-image.png" />
+
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
