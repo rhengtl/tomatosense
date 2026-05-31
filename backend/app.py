@@ -16,6 +16,42 @@ PIPELINE_PATH = BASE_DIR / "models" / "pipeline.pkl"
 
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 
+# Evaluation results reproduced directly from the notebook run.
+ANALYTICS_DATA = {
+    "kernel_comparison": {
+        "kernels":    ["Linear", "RBF", "Polynomial"],
+        "accuracies": [92.50, 87.50, 55.00],
+        "best":       "Linear",
+    },
+    "classification_report": {
+        "Unripe":   {"precision": 0.9474, "recall": 0.9000, "f1": 0.9231, "support": 40},
+        "Ripe":     {"precision": 0.9048, "recall": 0.9500, "f1": 0.9268, "support": 40},
+        "accuracy": 0.9250,
+    },
+    # rows = actual class, cols = predicted class  [[TN, FP], [FN, TP]]
+    "confusion_matrix": [[36, 4], [2, 38]],
+    "trials": {
+        "accuracies": [
+            87.5, 87.5, 87.5, 100.0, 87.5, 100.0, 100.0, 87.5,
+            87.5, 100.0, 75.0, 100.0, 75.0, 100.0, 100.0, 100.0,
+            87.5, 87.5, 100.0, 100.0,
+        ],
+        "mean": 92.50,
+        "std":  8.51,
+        "min":  75.00,
+        "max":  100.00,
+    },
+    "dataset": {
+        "total":             400,
+        "ripe":              200,
+        "unripe":            200,
+        "pca_components":    100,
+        "explained_variance": 99.7,
+        "img_size":          64,
+        "sources":           ["sumn2u/riped-and-unriped-tomato-dataset", "nexuswho/tomatofruits"],
+    },
+}
+
 pipeline: dict | None = None
 predictions_log: deque = deque(maxlen=50)
 
@@ -55,6 +91,11 @@ def health():
         info["explained_variance"] = pipeline.get("explained_variance")
         info["kernel"]             = pipeline.get("kernel")
     return info
+
+
+@app.get("/analytics-data")
+def analytics_data():
+    return ANALYTICS_DATA
 
 
 @app.get("/stats")
