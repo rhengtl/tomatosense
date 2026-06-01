@@ -129,6 +129,8 @@ static/
 !frontend/static/**
 .parcel-cache/
 
+scripts/
+
 # =============================================================
 # WEB APP — BACKEND UPLOADS & TEMP FILES
 # =============================================================
