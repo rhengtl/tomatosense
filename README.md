@@ -2,6 +2,8 @@
 
 TomatoSense is a FastAPI web application for classifying tomato images as **ripe** or **unripe**. It combines a small machine-learning pipeline with a browser UI for upload-based prediction, live session stats, and model analytics.
 
+Live app: https://tomato-sense.onrender.com
+
 ## What it does
 
 - Upload a tomato image and receive a ripe/unripe prediction with confidence scores.
@@ -92,6 +94,8 @@ The script expects the dataset files to be present under `notebook/data/tomato_k
 ## Deployment
 
 The repository includes a `render.yaml` file for deployment on Render. It installs the backend dependencies and starts the app with Uvicorn.
+
+Deployed application: https://tomato-sense.onrender.com
 
 ## License
 
