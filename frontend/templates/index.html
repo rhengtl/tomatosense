@@ -6,19 +6,26 @@
 
 <div class="hero">
   <h1>Is your tomato ripe?</h1>
-  <p>Upload a photo and find out in a second.</p>
+  <p>Upload a photo — or up to {{ max_batch }} at once — and find out in a second.</p>
 </div>
 
 <!-- ── Upload ──────────────────────────────────────────────────────────── -->
-<div class="card">
-  <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Choose a photo of a tomato">
-    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" aria-label="Choose a photo" />
+<div class="card" id="upload-card" data-max-batch="{{ max_batch }}">
+  <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Choose photos of tomatoes">
+    <input id="file-input" type="file" multiple accept="image/jpeg,image/png,image/webp,image/bmp" aria-label="Choose photos" />
     <div class="dropzone-icon">{{ icons.icon("camera", "icon-lg") }}</div>
-    <div class="dropzone-title">Drop a photo here or <span>choose one</span></div>
-    <p class="dropzone-text desktop-only">You can also paste a photo with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
-    <p class="dropzone-text mobile-only">Tap to take a photo or pick one from your gallery.</p>
+    <div class="dropzone-title">Drop photos here or <span>choose some</span></div>
+    <p class="dropzone-text desktop-only">One tomato per photo. You can also paste a photo with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
+    <p class="dropzone-text mobile-only">Tap to take a photo or pick some from your gallery. One tomato per photo.</p>
   </div>
 
+  <!-- Preparing (shrinking photos before upload) -->
+  <div id="preparing" class="status" hidden>
+    <div class="spinner spinner-dark"></div>
+    <span id="preparing-text">Preparing photos…</span>
+  </div>
+
+  <!-- Single photo preview -->
   <div id="preview" class="preview fade-in" hidden>
     <div class="preview-frame">
       <img id="preview-img" src="" alt="Your tomato photo" />
@@ -27,12 +34,33 @@
       </button>
     </div>
     <p class="preview-name" id="file-name"></p>
-    <div class="preview-actions">
-      <button type="button" id="classify-btn" class="btn btn-primary">
-        {{ icons.icon("sparkles") }} <span id="classify-btn-label">Check ripeness</span>
-      </button>
-      <button type="button" id="change-btn" class="btn btn-secondary">Use a different photo</button>
+  </div>
+
+  <!-- Multiple photo preview -->
+  <div id="batch-preview" class="fade-in" hidden>
+    <div class="batch-head">
+      <strong id="batch-count"></strong>
+      <button type="button" id="add-more-btn" class="btn btn-ghost">{{ icons.icon("plus", "icon-sm") }} Add more</button>
     </div>
+    <div class="thumb-grid" id="thumb-grid"></div>
+  </div>
+
+  <div id="actions" class="preview-actions" hidden>
+    <button type="button" id="classify-btn" class="btn btn-primary">
+      {{ icons.icon("sparkles") }} <span id="classify-btn-label">Check ripeness</span>
+    </button>
+    <button type="button" id="change-btn" class="btn btn-secondary">Start over</button>
+  </div>
+
+  <!-- Upload / checking progress -->
+  <div id="progress" class="progress" hidden>
+    <div class="progress-head"><span id="progress-text">Uploading…</span><span id="progress-pct">0%</span></div>
+    <div class="meter"><div class="meter-fill is-neutral" id="progress-bar"></div></div>
+  </div>
+
+  <div id="notice" class="notice" role="status" hidden>
+    {{ icons.icon("info") }}
+    <span id="notice-msg"></span>
   </div>
 
   <div id="error-box" class="alert" role="alert" hidden>
@@ -45,7 +73,7 @@
   </div>
 </div>
 
-<!-- ── Result ──────────────────────────────────────────────────────────── -->
+<!-- ── Single result ───────────────────────────────────────────────────── -->
 <div id="result" class="card result" aria-live="polite" hidden>
   <div class="result-eyebrow">Your tomato is</div>
   <div class="result-label"><span class="swatch"></span><span id="result-text-label">—</span></div>
@@ -61,24 +89,29 @@
   </div>
 
   <div class="result-actions">
-    <button type="button" id="reset-btn" class="btn btn-secondary">{{ icons.icon("refresh") }} Check another tomato</button>
+    <button type="button" class="btn btn-secondary reset-btn">{{ icons.icon("refresh") }} Check another tomato</button>
   </div>
 </div>
 
-<!-- ── Recent checks (this visit only) ─────────────────────────────────── -->
-<section class="recent" id="recent" hidden>
-  <div class="recent-head">
-    <h2>Checked this visit</h2>
-    <button type="button" id="recent-clear" class="btn btn-ghost">Clear</button>
+<!-- ── Batch results ───────────────────────────────────────────────────── -->
+<div id="batch-result" class="card batch-result" aria-live="polite" hidden>
+  <div class="summary">
+    <div class="summary-item is-ripe"><span class="summary-num" id="sum-ripe">0</span><span class="summary-label">Ripe</span></div>
+    <div class="summary-item is-unripe"><span class="summary-num" id="sum-unripe">0</span><span class="summary-label">Unripe</span></div>
+    <div class="summary-item" id="sum-failed-wrap" hidden><span class="summary-num" id="sum-failed">0</span><span class="summary-label">Couldn't check</span></div>
   </div>
-  <div class="recent-list" id="recent-list"></div>
-</section>
+  <p class="summary-text" id="summary-text"></p>
+  <div class="result-grid" id="result-grid"></div>
+  <div class="result-actions">
+    <button type="button" class="btn btn-secondary reset-btn">{{ icons.icon("refresh") }} Check more tomatoes</button>
+  </div>
+</div>
 
 <!-- ── Tips ────────────────────────────────────────────────────────────── -->
 <section class="section">
   <h2>Get the best result</h2>
   <div class="tips">
-    <div class="tip">{{ icons.icon("check") }}<div><strong>One tomato</strong>Fill the frame with a single tomato.</div></div>
+    <div class="tip">{{ icons.icon("check") }}<div><strong>One tomato per photo</strong>Fill the frame with a single tomato.</div></div>
     <div class="tip">{{ icons.icon("check") }}<div><strong>Good light</strong>Daylight works best — avoid heavy shadows.</div></div>
     <div class="tip">{{ icons.icon("check") }}<div><strong>Plain background</strong>A table or countertop keeps the focus on the fruit.</div></div>
   </div>

@@ -17,7 +17,9 @@ FRONTEND_DIR  = BASE_DIR.parent / "frontend"
 PIPELINE_PATH = BASE_DIR / "models" / "pipeline.pkl"
 
 ALLOWED_TYPES    = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB per image (the model only needs 64×64, so this is generous)
+MAX_BATCH_FILES  = 20                 # enough for a basket; keeps one request and one results grid manageable
+MAX_BATCH_BYTES  = 50 * 1024 * 1024  # 50 MB per batch request in total
 
 pipeline: dict | None = None
 predictions_log: deque = deque(maxlen=50)
@@ -62,6 +64,7 @@ def static_url(path: str) -> str:
 
 
 templates.env.globals["static_url"] = static_url
+templates.env.globals["max_batch"]  = MAX_BATCH_FILES
 
 
 # ---------------------------------------------------------------------------
@@ -107,23 +110,16 @@ def stats():
     }
 
 
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    if pipeline is None:
-        raise HTTPException(
-            status_code=503,
-            detail="Model not loaded. Run backend/train_model.py first.",
-        )
-
-    if file.content_type not in ALLOWED_TYPES:
+def _predict_image(content_type: str | None, raw: bytes) -> dict:
+    """Validate one uploaded image, run the pipeline, and record the result."""
+    if content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=422,
-            detail=f"Unsupported file type '{file.content_type}'. Upload a JPEG, PNG, WEBP, or BMP image.",
+            detail=f"Unsupported file type '{content_type}'. Upload a JPEG, PNG, WEBP, or BMP image.",
         )
-
-    raw = await file.read()
     if len(raw) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="File too large. Maximum size is 10 MB.")
+
     arr = np.frombuffer(raw, np.uint8)
     img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
     if img is None:
@@ -157,6 +153,63 @@ async def predict(file: UploadFile = File(...)):
     }
     predictions_log.append(result)
     return result
+
+
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)):
+    if pipeline is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded. Run backend/train_model.py first.",
+        )
+    raw = await file.read()
+    return _predict_image(file.content_type, raw)
+
+
+@app.post("/predict-batch")
+async def predict_batch(files: list[UploadFile] = File(...)):
+    """Classify up to MAX_BATCH_FILES images in one request.
+
+    One bad image does not fail the batch: each entry reports ok=True with the
+    prediction, or ok=False with an error message.
+    """
+    if pipeline is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded. Run backend/train_model.py first.",
+        )
+    if not files:
+        raise HTTPException(status_code=422, detail="No images were uploaded.")
+    if len(files) > MAX_BATCH_FILES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Too many images. You can check up to {MAX_BATCH_FILES} at a time.",
+        )
+
+    results: list[dict] = []
+    total_bytes = 0
+    for f in files:
+        raw = await f.read()
+        total_bytes += len(raw)
+        if total_bytes > MAX_BATCH_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"This batch is too large. Keep the total under {MAX_BATCH_BYTES // (1024 * 1024)} MB.",
+            )
+        entry: dict = {"filename": f.filename}
+        try:
+            entry.update(ok=True, **_predict_image(f.content_type, raw))
+        except HTTPException as exc:
+            entry.update(ok=False, error=exc.detail)
+        results.append(entry)
+
+    return {
+        "count":        len(results),
+        "ripe_count":   sum(1 for r in results if r["ok"] and r["label_index"] == 1),
+        "unripe_count": sum(1 for r in results if r["ok"] and r["label_index"] == 0),
+        "failed_count": sum(1 for r in results if not r["ok"]),
+        "results":      results,
+    }
 
 
 # ---------------------------------------------------------------------------

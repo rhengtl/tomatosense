@@ -7,7 +7,8 @@ Live app: https://tomato-sense.onrender.com
 ## What it does
 
 - Upload, drop, or paste a tomato photo and get a ripe/unripe answer with a plain-language confidence score.
-- See the photos you've checked during the current visit (kept in the browser only; nothing is stored server-side).
+- Check up to 20 photos in one go and get a summary (how many ripe / unripe) plus a per-photo result grid.
+- Large photos are shrunk in the browser before upload (longest edge 1280 px), so batches stay fast on mobile.
 - Read a short "How it works" page with the model's accuracy in everyday terms and its limitations.
 
 ## How it is built
@@ -52,13 +53,14 @@ The model workflow in `backend/train_model.py` is:
 
 - `GET /` the classifier: upload a photo and get a result
 - `GET /about` plain-language "How it works" page with accuracy and limitations
-- `POST /predict` image inference endpoint
+- `POST /predict` single-image inference endpoint
+- `POST /predict-batch` multi-image inference (`files` field, up to 20 images / 50 MB per request); one bad image doesn't fail the batch
 - `GET /analytics-data` evaluation metrics as JSON (kernel comparison, confusion matrix, per-class metrics, dataset summary)
 - `GET /stats` in-memory prediction counts for the current server session
 - `GET /health` health check and model-load status
 - `GET /classify` and `GET /analytics` redirect to `/` and `/about` (kept for old links)
 
-Prediction accepts JPEG, PNG, WEBP, and BMP files up to 10 MB. If the serialized pipeline is missing, the app will start but prediction and analytics endpoints will return an error until `backend/train_model.py` is run.
+Prediction accepts JPEG, PNG, WEBP, and BMP files up to 10 MB each; batches take up to 20 images and 50 MB in total. If the serialized pipeline is missing, the app will start but prediction and analytics endpoints will return an error until `backend/train_model.py` is run.
 
 ## Setup
 
