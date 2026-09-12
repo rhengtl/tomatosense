@@ -9,7 +9,7 @@
   <title>{% block title %}TomatoSense{% endblock %}</title>
   <meta name="description" content="{% block meta_description %}Upload a photo of a tomato and find out in a second whether it's ripe.{% endblock %}" />
 
-  <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="{{ static_url('img/favicon.svg') }}" type="image/svg+xml" />
 
   <!-- Open Graph / link preview -->
   <meta property="og:type"        content="website" />
@@ -28,7 +28,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="/static/css/style.css" />
+  <link rel="stylesheet" href="{{ static_url('css/style.css') }}" />
 </head>
 <body>
 

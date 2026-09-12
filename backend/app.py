@@ -1,3 +1,4 @@
+import hashlib
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -51,6 +52,16 @@ app.mount(
 )
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
 templates.env.globals["current_year"] = datetime.now(timezone.utc).year
+
+
+def static_url(path: str) -> str:
+    """Static asset URL with a content hash so browsers fetch changed files instead of cached ones."""
+    file = FRONTEND_DIR / "static" / path
+    digest = hashlib.md5(file.read_bytes()).hexdigest()[:10] if file.exists() else "0"
+    return f"/static/{path}?v={digest}"
+
+
+templates.env.globals["static_url"] = static_url
 
 
 # ---------------------------------------------------------------------------
