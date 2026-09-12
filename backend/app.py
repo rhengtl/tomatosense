@@ -51,7 +51,7 @@ templates.env.filters["zip"] = zip
 # API
 # ---------------------------------------------------------------------------
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])  # HEAD: uptime monitors default to it
 def health():
     info: dict = {"status": "ok", "model_loaded": pipeline is not None}
     if pipeline:
