@@ -1,164 +1,235 @@
+// Home page: pick a photo (browse / drag-drop / paste), send it for a prediction, show the result.
 (() => {
-  const dropZone      = document.getElementById('drop-zone');
-  const fileInput     = document.getElementById('file-input');
-  const previewSection = document.getElementById('preview-section');
-  const previewImg    = document.getElementById('preview-img');
-  const fileNameEl    = document.getElementById('file-name');
-  const removeBtn     = document.getElementById('remove-btn');
-  const classifyBtn   = document.getElementById('classify-btn');
-  const loading       = document.getElementById('loading');
-  const resultCard    = document.getElementById('result-card');
-  const resultHeader  = document.getElementById('result-header');
-  const resultLabel   = document.getElementById('result-label');
-  const resultConf    = document.getElementById('result-confidence');
-  const probRipePct   = document.getElementById('prob-ripe-pct');
-  const probRipeBar   = document.getElementById('prob-ripe-bar');
-  const probUnripePct = document.getElementById('prob-unripe-pct');
-  const probUnripeBar = document.getElementById('prob-unripe-bar');
-  const resetBtn      = document.getElementById('reset-btn');
-  const errorBox      = document.getElementById('error-box');
-  const errorMsg      = document.getElementById('error-msg');
-  const errorResetBtn = document.getElementById('error-reset-btn');
+  const ALLOWED   = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp'];
+  const MAX_BYTES = 10 * 1024 * 1024;
+  const MAX_RECENT = 6;
+
+  const $ = id => document.getElementById(id);
+  const dropzone    = $('dropzone');
+  const fileInput   = $('file-input');
+  const preview     = $('preview');
+  const previewImg  = $('preview-img');
+  const fileName    = $('file-name');
+  const removeBtn   = $('remove-btn');
+  const changeBtn   = $('change-btn');
+  const classifyBtn = $('classify-btn');
+  const classifyLbl = $('classify-btn-label');
+  const errorBox    = $('error-box');
+  const errorTitle  = $('error-title');
+  const errorMsg    = $('error-msg');
+  const errorReset  = $('error-reset-btn');
+
+  const result      = $('result');
+  const resultLabel = $('result-text-label');
+  const resultText  = $('result-text');
+  const confValue   = $('confidence-value');
+  const confBar     = $('confidence-bar');
+  const confNote    = $('confidence-note');
+  const resetBtn    = $('reset-btn');
+
+  const recent      = $('recent');
+  const recentList  = $('recent-list');
+  const recentClear = $('recent-clear');
 
   let selectedFile = null;
+  let previewUrl   = null;
+  let busy         = false;
+  const history    = [];
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  function show(el)  { el.classList.remove('hidden'); }
-  function hide(el)  { el.classList.add('hidden'); }
+  const formatMB = b => `${(b / (1024 * 1024)).toFixed(1)} MB`;
 
-  function reset() {
+  function showError(title, msg) {
+    errorTitle.textContent = title;
+    errorMsg.textContent = msg;
+    errorBox.hidden = false;
+  }
+
+  function clearSelection() {
     selectedFile = null;
     fileInput.value = '';
-    previewImg.src = '';
-    hide(previewSection);
-    hide(loading);
-    hide(resultCard);
-    hide(errorBox);
-    show(dropZone);
-    dropZone.classList.remove('border-red-400', 'bg-red-50');
-    classifyBtn.disabled = false;
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    previewImg.removeAttribute('src');
+    preview.hidden = true;
+    dropzone.hidden = false;
+    dropzone.classList.remove('is-dragover');
   }
 
-  // ── File selection ─────────────────────────────────────────────────────────
+  function resetAll() {
+    clearSelection();
+    errorBox.hidden = true;
+    result.hidden = true;
+    dropzone.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    dropzone.focus({ preventScroll: true });
+  }
 
-  function handleFile(file) {
-    if (!file || !file.type.startsWith('image/')) {
-      showError('Please select a valid image file (JPEG, PNG, WEBP, or BMP).');
-      return;
-    }
+  // ── Choosing a photo ───────────────────────────────────────────────────────
+
+  function validate(file) {
+    if (!file) return 'No photo was selected.';
+    if (!ALLOWED.includes(file.type)) return 'Please use a JPEG, PNG, WEBP or BMP photo.';
+    if (file.size > MAX_BYTES) return `That photo is ${formatMB(file.size)} — the limit is 10 MB.`;
+    return null;
+  }
+
+  function selectFile(file) {
+    const problem = validate(file);
+    if (problem) { showError('That photo can’t be used', problem); return; }
+
+    errorBox.hidden = true;
+    result.hidden = true;
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     selectedFile = file;
-    const url = URL.createObjectURL(file);
-    previewImg.src = url;
-    fileNameEl.textContent = file.name;
+    previewUrl   = URL.createObjectURL(file);
+    previewImg.src = previewUrl;
+    fileName.textContent = file.name || 'Pasted photo';
 
-    hide(dropZone);
-    hide(errorBox);
-    hide(resultCard);
-    show(previewSection);
+    dropzone.hidden = true;
+    preview.hidden = false;
+    classifyBtn.focus({ preventScroll: true });
   }
 
-  fileInput.addEventListener('change', () => {
-    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) selectFile(fileInput.files[0]); });
+  dropzone.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
   });
 
-  // Click on zone triggers the hidden input (input is absolutely positioned over zone)
-  // The input's opacity-0 handles click; no extra listener needed.
-
-  // ── Drag and drop ──────────────────────────────────────────────────────────
-
-  dropZone.addEventListener('dragover', e => {
-    e.preventDefault();
-    dropZone.classList.add('border-red-400', 'bg-red-50');
-  });
-
-  ['dragleave', 'dragend'].forEach(evt =>
-    dropZone.addEventListener(evt, () =>
-      dropZone.classList.remove('border-red-400', 'bg-red-50')
-    )
+  ['dragenter', 'dragover'].forEach(evt =>
+    dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('is-dragover'); })
   );
-
-  dropZone.addEventListener('drop', e => {
+  ['dragleave', 'dragend', 'drop'].forEach(evt =>
+    dropzone.addEventListener(evt, () => dropzone.classList.remove('is-dragover'))
+  );
+  dropzone.addEventListener('drop', e => {
     e.preventDefault();
-    dropZone.classList.remove('border-red-400', 'bg-red-50');
-    const file = e.dataTransfer.files[0];
-    handleFile(file);
+    const file = e.dataTransfer && e.dataTransfer.files[0];
+    if (file) selectFile(file);
   });
 
-  // ── Remove / reset ─────────────────────────────────────────────────────────
+  // Dropping anywhere on the page also works (and never navigates away).
+  window.addEventListener('dragover', e => e.preventDefault());
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    if (dropzone.contains(e.target)) return;
+    const file = e.dataTransfer && e.dataTransfer.files[0];
+    if (file && !busy) selectFile(file);
+  });
 
-  removeBtn.addEventListener('click', reset);
-  resetBtn.addEventListener('click', reset);
-  errorResetBtn.addEventListener('click', reset);
+  document.addEventListener('paste', e => {
+    if (busy) return;
+    const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+    const item = items.find(i => i.kind === 'file' && i.type.startsWith('image/'));
+    if (!item) return;
+    const file = item.getAsFile();
+    if (file) {
+      e.preventDefault();
+      const ext = (file.type.split('/')[1] || 'png').replace('jpeg', 'jpg');
+      selectFile(new File([file], `pasted-photo.${ext}`, { type: file.type }));
+    }
+  });
 
-  // ── Classify ───────────────────────────────────────────────────────────────
+  removeBtn.addEventListener('click', resetAll);
+  changeBtn.addEventListener('click', () => fileInput.click());
+  resetBtn.addEventListener('click', resetAll);
+  errorReset.addEventListener('click', resetAll);
 
-  classifyBtn.addEventListener('click', async () => {
-    if (!selectedFile) return;
+  // ── Checking ───────────────────────────────────────────────────────────────
 
+  async function classify() {
+    if (!selectedFile || busy) return;
+    busy = true;
     classifyBtn.disabled = true;
-    hide(previewSection);
-    hide(errorBox);
-    show(loading);
+    changeBtn.disabled = true;
+    classifyLbl.textContent = 'Checking…';
+    errorBox.hidden = true;
+    result.hidden = true;
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    const form = new FormData();
+    form.append('file', selectedFile);
 
     try {
-      const resp = await fetch('/predict', { method: 'POST', body: formData });
-      const data = await resp.json();
-
+      const resp = await fetch('/predict', { method: 'POST', body: form });
+      let data = null;
+      try { data = await resp.json(); } catch (_) { /* non-JSON error body */ }
       if (!resp.ok) {
-        throw new Error(data.detail || `Server error (${resp.status})`);
+        const detail = data && typeof data.detail === 'string' ? data.detail : `The server responded with status ${resp.status}.`;
+        throw new Error(detail);
       }
-
       renderResult(data);
+      addRecent(data);
     } catch (err) {
-      showError(err.message || 'Unexpected error. Please try again.');
+      const offline = err instanceof TypeError;
+      showError(
+        offline ? 'Couldn’t reach TomatoSense' : 'We couldn’t check that photo',
+        offline ? 'Check your internet connection and try again.' : (err.message || 'Please try again.')
+      );
     } finally {
-      hide(loading);
+      busy = false;
+      classifyBtn.disabled = false;
+      changeBtn.disabled = false;
+      classifyLbl.textContent = 'Check ripeness';
     }
+  }
+
+  classifyBtn.addEventListener('click', classify);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && selectedFile && !busy && !preview.hidden && !(e.target instanceof HTMLButtonElement)) classify();
   });
 
-  // ── Result rendering ───────────────────────────────────────────────────────
+  // ── Result ─────────────────────────────────────────────────────────────────
+
+  const COPY = {
+    ripe:   'Red and ready — this one looks good to pick or eat.',
+    unripe: 'Still green — give it a few more days on the vine or the counter.',
+  };
+
+  function confidenceNote(c) {
+    if (c >= 90) return 'Very confident.';
+    if (c >= 70) return 'Fairly confident — a clearer photo could help.';
+    return 'Not very confident — try better light or a closer shot.';
+  }
 
   function renderResult(data) {
     const isRipe = data.label_index === 1;
-
-    resultHeader.className = resultHeader.className
-      .replace(/bg-\S+/g, '')
-      .trim();
-    resultHeader.classList.add(isRipe ? 'bg-red-500' : 'bg-green-600');
-
-    resultLabel.textContent     = data.label;
-    resultConf.textContent      = `${data.confidence}%`;
-
-    const ripe   = data.probabilities['Ripe']   ?? 0;
-    const unripe = data.probabilities['Unripe'] ?? 0;
-
-    probRipePct.textContent   = `${ripe}%`;
-    probUnripePct.textContent = `${unripe}%`;
-
-    // Animate bars after a short delay so the transition is visible
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        probRipeBar.style.width   = `${ripe}%`;
-        probUnripeBar.style.width = `${unripe}%`;
-      }, 50);
-    });
-
-    show(resultCard);
+    result.className = `card result fade-in ${isRipe ? 'is-ripe' : 'is-unripe'}`;
+    resultLabel.textContent = data.label;
+    resultText.textContent  = isRipe ? COPY.ripe : COPY.unripe;
+    confValue.textContent   = `${Math.round(data.confidence)}%`;
+    confNote.textContent    = confidenceNote(data.confidence);
+    confBar.style.width     = '0%';
+    result.hidden = false;
+    requestAnimationFrame(() => requestAnimationFrame(() => { confBar.style.width = `${data.confidence}%`; }));
+    result.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
-  // ── Error display ──────────────────────────────────────────────────────────
+  // ── Recent checks (kept only for this visit) ───────────────────────────────
 
-  function showError(msg) {
-    hide(loading);
-    hide(previewSection);
-    hide(resultCard);
-    errorMsg.textContent = msg;
-    show(errorBox);
-    show(dropZone);
-    classifyBtn.disabled = false;
+  function addRecent(data) {
+    history.unshift({ label: data.label, isRipe: data.label_index === 1, thumbUrl: URL.createObjectURL(selectedFile) });
+    while (history.length > MAX_RECENT) URL.revokeObjectURL(history.pop().thumbUrl);
+    renderRecent();
   }
+
+  function renderRecent() {
+    recent.hidden = history.length === 0;
+    recentList.replaceChildren(...history.map(h => {
+      const el = document.createElement('div');
+      el.className = 'recent-item';
+      const img = document.createElement('img');
+      img.className = 'recent-thumb';
+      img.src = h.thumbUrl;
+      img.alt = `${h.label} tomato`;
+      const badge = document.createElement('span');
+      badge.className = `badge badge-${h.isRipe ? 'ripe' : 'unripe'}`;
+      badge.textContent = h.label;
+      el.append(img, badge);
+      return el;
+    }));
+  }
+
+  recentClear.addEventListener('click', () => {
+    history.splice(0).forEach(h => URL.revokeObjectURL(h.thumbUrl));
+    renderRecent();
+  });
 })();

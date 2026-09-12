@@ -1,22 +1,21 @@
 # TomatoSense
 
-TomatoSense is a FastAPI web application for classifying tomato images as **ripe** or **unripe**. It combines a small machine-learning pipeline with a browser UI for upload-based prediction, live session stats, and model analytics.
+TomatoSense is a FastAPI web application that tells you whether a tomato is **ripe** or **unripe** from a photo. It pairs a small machine-learning pipeline with a simple, two-page browser UI aimed at everyday users.
 
 Live app: https://tomato-sense.onrender.com
 
 ## What it does
 
-- Upload a tomato image and receive a ripe/unripe prediction with confidence scores.
-- View live session activity, including recent predictions and counts by class.
-- Inspect model analytics such as kernel comparison, confusion matrix, per-class metrics, and dataset summary.
-- Review an about page that documents the preprocessing pipeline and training setup.
+- Upload, drop, or paste a tomato photo and get a ripe/unripe answer with a plain-language confidence score.
+- See the photos you've checked during the current visit (kept in the browser only; nothing is stored server-side).
+- Read a short "How it works" page with the model's accuracy in everyday terms and its limitations.
 
 ## How it is built
 
 The application is split into three parts:
 
 - **Backend**: FastAPI serves pages, JSON endpoints, and model inference.
-- **Frontend**: Jinja2 templates plus vanilla JavaScript provide the dashboard, upload flow, and charts.
+- **Frontend**: Jinja2 templates, a small hand-written stylesheet, and vanilla JavaScript. No build step or CSS framework.
 - **Model pipeline**: A serialized `joblib` pipeline is loaded from `backend/models/pipeline.pkl` at startup.
 
 The model workflow in `backend/train_model.py` is:
@@ -38,28 +37,26 @@ The model workflow in `backend/train_model.py` is:
 - NumPy
 - scikit-learn
 - Joblib
-- Tailwind CSS via CDN
-- Chart.js via CDN
+- Inter (Google Fonts)
 
 ## Repository structure
 
 - `backend/` FastAPI application, training script, and saved model artifacts
-- `frontend/templates/` HTML pages rendered by the backend
-- `frontend/static/js/` client-side behavior for navigation, uploads, analytics, and dashboard stats
-- `frontend/static/css/` small custom styles
+- `frontend/templates/` the two pages (`index.html`, `about.html`), the shared shell (`base.html`) and inline SVG icons (`_icons.html`)
+- `frontend/static/js/classify.js` upload, prediction, and result handling
+- `frontend/static/css/style.css` all styling
 - `notebook/` notebook and dataset files used during model development
 - `render.yaml` Render deployment configuration
 
 ## Current functionality
 
-- `GET /` dashboard with model summary cards and session activity
-- `GET /classify` upload-and-predict page
+- `GET /` the classifier: upload a photo and get a result
+- `GET /about` plain-language "How it works" page with accuracy and limitations
 - `POST /predict` image inference endpoint
-- `GET /analytics` model analytics page
-- `GET /analytics-data` analytics JSON for charts
-- `GET /about` model card and dataset summary page
-- `GET /stats` in-memory prediction stats for the current server session
+- `GET /analytics-data` evaluation metrics as JSON (kernel comparison, confusion matrix, per-class metrics, dataset summary)
+- `GET /stats` in-memory prediction counts for the current server session
 - `GET /health` health check and model-load status
+- `GET /classify` and `GET /analytics` redirect to `/` and `/about` (kept for old links)
 
 Prediction accepts JPEG, PNG, WEBP, and BMP files up to 10 MB. If the serialized pipeline is missing, the app will start but prediction and analytics endpoints will return an error until `backend/train_model.py` is run.
 

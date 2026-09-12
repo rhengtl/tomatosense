@@ -7,6 +7,7 @@ import cv2
 import joblib
 import numpy as np
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
@@ -30,10 +31,15 @@ async def lifespan(app: FastAPI):
         print(f"Pipeline loaded — test accuracy: {acc}")
     else:
         print("No pipeline.pkl found. Run: .venv/Scripts/python backend/train_model.py")
-    templates.env.globals["model_loaded"] = pipeline is not None
+    _sync_template_globals()
     yield
     pipeline = None
-    templates.env.globals["model_loaded"] = False
+    _sync_template_globals()
+
+
+def _sync_template_globals() -> None:
+    """Expose model status to every template (used by the app shell)."""
+    templates.env.globals["model_loaded"] = pipeline is not None
 
 
 app = FastAPI(title="TomatoSense", version="1.0.0", lifespan=lifespan)
@@ -44,7 +50,7 @@ app.mount(
     name="static",
 )
 templates = Jinja2Templates(directory=FRONTEND_DIR / "templates")
-templates.env.filters["zip"] = zip
+templates.env.globals["current_year"] = datetime.now(timezone.utc).year
 
 
 # ---------------------------------------------------------------------------
@@ -147,48 +153,33 @@ async def predict(file: UploadFile = File(...)):
 # ---------------------------------------------------------------------------
 
 @app.get("/")
-def dashboard(request: Request):
-    model_info = None
-    if pipeline:
-        model_info = {
-            "accuracy":          f"{pipeline['test_accuracy'] * 100:.2f}%",
-            "kernel":            pipeline["kernel"].capitalize(),
-            "pca_components":    pipeline["n_components"],
-            "explained_variance": f"{pipeline['explained_variance']}%",
-        }
-    return templates.TemplateResponse(
-        "index.html", {"request": request, "model_info": model_info}
-    )
+def home(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.get("/classify")
-def classify_page(request: Request):
-    return templates.TemplateResponse("classify.html", {"request": request})
+@app.get("/classify", include_in_schema=False)
+def classify_redirect():
+    # The classifier now lives on the home page; keep old links working.
+    return RedirectResponse("/", status_code=301)
 
 
-@app.get("/analytics")
-def analytics_page(request: Request):
-    return templates.TemplateResponse("analytics.html", {"request": request})
+@app.get("/analytics", include_in_schema=False)
+def analytics_redirect():
+    # Detailed evaluation charts were folded into the plain-language "How it works" page.
+    return RedirectResponse("/about", status_code=301)
 
 
 @app.get("/about")
 def about_page(request: Request):
     about_info = None
     if pipeline:
-        analytics  = pipeline["analytics"]
-        kc         = analytics["kernel_comparison"]
-        cr         = analytics["classification_report"]
-        tr         = analytics["trials"]
+        cm = pipeline["analytics"]["confusion_matrix"]
+        total   = sum(sum(row) for row in cm)
+        correct = cm[0][0] + cm[1][1]
         about_info = {
-            "accuracy":           f"{pipeline['test_accuracy'] * 100:.2f}%",
-            "kernel":             pipeline["kernel"].capitalize(),
-            "trial_mean":         f"{tr['mean']}%",
-            "macro_precision":    f"{(cr['Unripe']['precision'] + cr['Ripe']['precision']) / 2 * 100:.2f}%",
-            "macro_recall":       f"{(cr['Unripe']['recall']    + cr['Ripe']['recall'])    / 2 * 100:.2f}%",
-            "macro_f1":           f"{(cr['Unripe']['f1']        + cr['Ripe']['f1'])        / 2 * 100:.2f}%",
-            "kernels":            kc["kernels"],
-            "kernel_accuracies":  kc["accuracies"],
-            "best_kernel":        kc["best"],
+            "accuracy":     f"{pipeline['test_accuracy'] * 100:.0f}%",
+            "test_total":   total,
+            "test_correct": correct,
         }
     return templates.TemplateResponse(
         "about.html", {"request": request, "about_info": about_info}

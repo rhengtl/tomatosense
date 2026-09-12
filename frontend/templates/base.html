@@ -1,89 +1,65 @@
+{% import "_icons.html" as icons %}
+{% set current_path = request.url.path %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#ffffff" />
   <title>{% block title %}TomatoSense{% endblock %}</title>
+  <meta name="description" content="{% block meta_description %}Upload a photo of a tomato and find out in a second whether it's ripe.{% endblock %}" />
 
-  <!-- Favicon -->
   <link rel="icon" href="/static/img/favicon.svg" type="image/svg+xml" />
 
   <!-- Open Graph / link preview -->
   <meta property="og:type"        content="website" />
   <meta property="og:site_name"   content="TomatoSense" />
-  <meta property="og:title"       content="{% block og_title %}TomatoSense — Tomato Ripeness Classifier{% endblock %}" />
-  <meta property="og:description" content="{% block og_description %}Upload a tomato photo and get an instant ripeness prediction powered by a Support Vector Machine trained on 400 real images.{% endblock %}" />
+  <meta property="og:title"       content="{% block og_title %}TomatoSense — Is your tomato ripe?{% endblock %}" />
+  <meta property="og:description" content="{% block og_description %}Upload a photo of a tomato and find out in a second whether it's ripe.{% endblock %}" />
   <meta property="og:image"       content="{{ request.base_url }}static/img/og-image.png" />
   <meta property="og:url"         content="{{ request.base_url }}" />
 
   <!-- Twitter / X card -->
   <meta name="twitter:card"        content="summary_large_image" />
-  <meta name="twitter:title"       content="{% block tw_title %}TomatoSense — Tomato Ripeness Classifier{% endblock %}" />
-  <meta name="twitter:description" content="{% block tw_description %}Upload a tomato photo and get an instant ripeness prediction powered by a Support Vector Machine trained on 400 real images.{% endblock %}" />
+  <meta name="twitter:title"       content="{% block tw_title %}TomatoSense — Is your tomato ripe?{% endblock %}" />
+  <meta name="twitter:description" content="{% block tw_description %}Upload a photo of a tomato and find out in a second whether it's ripe.{% endblock %}" />
   <meta name="twitter:image"       content="{{ request.base_url }}static/img/og-image.png" />
 
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
-<body class="min-h-screen flex flex-col bg-gray-50 text-gray-800">
+<body>
 
-  <!-- Navbar -->
-  <nav class="bg-white border-b border-gray-200 shadow-sm">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2 text-red-600 font-bold text-xl tracking-tight">
-        <span>🍅</span>
-        <span>TomatoSense</span>
-      </a>
-      <!-- Desktop nav -->
-      <ul class="hidden sm:flex items-center gap-6 text-sm font-medium text-gray-600">
-        <li><a href="/"          class="nav-link hover:text-red-600 transition-colors">Dashboard</a></li>
-        <li><a href="/classify"  class="nav-link hover:text-red-600 transition-colors">Classify</a></li>
-        <li><a href="/analytics" class="nav-link hover:text-red-600 transition-colors">Analytics</a></li>
-        <li><a href="/about"     class="nav-link hover:text-red-600 transition-colors">About</a></li>
-      </ul>
-      <!-- Hamburger (mobile only) -->
-      <button id="nav-toggle"
-              class="sm:hidden p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-gray-50 transition-colors"
-              aria-label="Toggle navigation">
-        <svg id="icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
-        </svg>
-        <svg id="icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
-        </svg>
-      </button>
-    </div>
-    <!-- Mobile dropdown -->
-    <div id="mobile-nav" class="hidden sm:hidden border-t border-gray-100">
-      <ul class="flex flex-col px-4 py-2 text-sm font-medium text-gray-600">
-        <li><a href="/"          class="nav-link block py-2.5 hover:text-red-600 transition-colors">Dashboard</a></li>
-        <li><a href="/classify"  class="nav-link block py-2.5 hover:text-red-600 transition-colors">Classify</a></li>
-        <li><a href="/analytics" class="nav-link block py-2.5 hover:text-red-600 transition-colors">Analytics</a></li>
-        <li><a href="/about"     class="nav-link block py-2.5 hover:text-red-600 transition-colors">About</a></li>
-      </ul>
-    </div>
-  </nav>
-
-  <!-- Model-not-loaded banner -->
-  {% if not model_loaded %}
-  <div class="bg-yellow-50 border-b border-yellow-200 py-2 px-4 text-center text-sm text-yellow-700">
-    Model not loaded &mdash; run
-    <code class="bg-yellow-100 rounded px-1 font-mono text-xs">.venv\Scripts\python backend\train_model.py</code>
-    then restart the server. Predictions will not work.
+<header class="header">
+  <div class="header-inner">
+    <a href="/" class="brand">
+      {{ icons.logo() }}
+      <span>TomatoSense</span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="/"      class="{{ 'is-active' if current_path == '/' }}"      {% if current_path == '/' %}aria-current="page"{% endif %}><span class="long">Check a tomato</span><span class="short">Check</span></a>
+      <a href="/about" class="{{ 'is-active' if current_path == '/about' }}" {% if current_path == '/about' %}aria-current="page"{% endif %}>How it works</a>
+    </nav>
   </div>
-  {% endif %}
+</header>
 
-  <!-- Page content -->
-  <main class="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
-    {% block content %}{% endblock %}
-  </main>
+{% if not model_loaded %}
+<div class="banner" role="status">
+  TomatoSense is temporarily unavailable — the classifier isn't loaded on this server yet.
+</div>
+{% endif %}
 
-  <!-- Footer -->
-  <footer class="bg-white border-t border-gray-200 text-center text-xs text-gray-400 py-4">
-    TomatoSense &mdash; SVM Ripeness Classifier
-  </footer>
+<main id="main">
+  {% block content %}{% endblock %}
+</main>
 
-  <script src="/static/js/main.js"></script>
-  {% block scripts %}{% endblock %}
+<footer class="footer">
+  © {{ current_year }} TomatoSense · Photos are analysed instantly and never stored ·
+  <a href="/about">How it works</a>
+</footer>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

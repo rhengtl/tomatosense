@@ -1,91 +1,91 @@
 {% extends "base.html" %}
-{% block title %}Dashboard — TomatoSense{% endblock %}
+{% import "_icons.html" as icons %}
+{% block title %}TomatoSense — Is your tomato ripe?{% endblock %}
 
 {% block content %}
 
-<!-- ── Hero ──────────────────────────────────────────────────────────────── -->
-<div class="bg-white rounded-2xl border border-gray-100 shadow-sm px-8 py-10 mb-8
-            flex flex-col sm:flex-row items-center justify-between gap-6">
-  <div>
-    <h1 class="text-3xl font-bold text-gray-800 mb-2">🍅 TomatoSense</h1>
-    <p class="text-gray-500 max-w-md">
-      Upload a tomato photo and get an instant ripeness prediction powered by a
-      Support Vector Machine trained on 400 real tomato images.
-    </p>
-  </div>
-  <a href="/classify"
-     class="shrink-0 bg-red-600 text-white px-7 py-3 rounded-xl font-semibold
-            hover:bg-red-700 active:scale-95 transition-all shadow">
-    Classify a Tomato →
-  </a>
+<div class="hero">
+  <h1>Is your tomato ripe?</h1>
+  <p>Upload a photo and find out in a second.</p>
 </div>
 
-<!-- ── Model info cards (server-side) ────────────────────────────────────── -->
-<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Model</h2>
-
-{% if model_info %}
-<div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">Test Accuracy</p>
-    <p class="text-2xl font-bold text-gray-800">{{ model_info.accuracy }}</p>
+<!-- ── Upload ──────────────────────────────────────────────────────────── -->
+<div class="card">
+  <div id="dropzone" class="dropzone" role="button" tabindex="0" aria-label="Choose a photo of a tomato">
+    <input id="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/bmp" aria-label="Choose a photo" />
+    <div class="dropzone-icon">{{ icons.icon("camera", "icon-lg") }}</div>
+    <div class="dropzone-title">Drop a photo here or <span>choose one</span></div>
+    <p class="dropzone-text desktop-only">You can also paste a photo with <kbd>Ctrl</kbd> + <kbd>V</kbd>.</p>
+    <p class="dropzone-text mobile-only">Tap to take a photo or pick one from your gallery.</p>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">Kernel</p>
-    <p class="text-2xl font-bold text-gray-800">{{ model_info.kernel }}</p>
+  <div id="preview" class="preview fade-in" hidden>
+    <div class="preview-frame">
+      <img id="preview-img" src="" alt="Your tomato photo" />
+      <button type="button" id="remove-btn" class="preview-remove" aria-label="Remove photo" title="Remove photo">
+        {{ icons.icon("x") }}
+      </button>
+    </div>
+    <p class="preview-name" id="file-name"></p>
+    <div class="preview-actions">
+      <button type="button" id="classify-btn" class="btn btn-primary">
+        {{ icons.icon("sparkles") }} <span id="classify-btn-label">Check ripeness</span>
+      </button>
+      <button type="button" id="change-btn" class="btn btn-secondary">Use a different photo</button>
+    </div>
   </div>
 
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">PCA Components</p>
-    <p class="text-2xl font-bold text-gray-800">{{ model_info.pca_components }}</p>
-  </div>
-
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">Variance Retained</p>
-    <p class="text-2xl font-bold text-gray-800">{{ model_info.explained_variance }}</p>
-  </div>
-
-</div>
-{% else %}
-<div class="mb-8 bg-yellow-50 border border-yellow-200 rounded-xl px-5 py-4 text-sm text-yellow-700">
-  Model not loaded. Run <code class="font-mono bg-yellow-100 px-1 rounded">backend/train_model.py</code> then restart the server.
-</div>
-{% endif %}
-
-<!-- ── Live prediction stats (client-side) ────────────────────────────────── -->
-<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
-  Session Activity
-  <span class="ml-2 text-gray-300 font-normal normal-case tracking-normal">(resets on server restart)</span>
-</h2>
-
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">Total Predictions</p>
-    <p id="stat-total" class="text-2xl font-bold text-gray-800">—</p>
-  </div>
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">🔴 Ripe</p>
-    <p id="stat-ripe" class="text-2xl font-bold text-red-600">—</p>
-  </div>
-  <div class="bg-white rounded-xl border border-gray-100 shadow-sm px-5 py-4">
-    <p class="text-xs text-gray-400 mb-1">🟢 Unripe</p>
-    <p id="stat-unripe" class="text-2xl font-bold text-green-600">—</p>
+  <div id="error-box" class="alert" role="alert" hidden>
+    {{ icons.icon("alert") }}
+    <div>
+      <strong id="error-title">Something went wrong</strong>
+      <span id="error-msg"></span>
+      <button type="button" id="error-reset-btn" class="btn-link">Try again</button>
+    </div>
   </div>
 </div>
 
-<!-- ── Recent predictions ─────────────────────────────────────────────────── -->
-<h2 class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Recent Predictions</h2>
+<!-- ── Result ──────────────────────────────────────────────────────────── -->
+<div id="result" class="card result" aria-live="polite" hidden>
+  <div class="result-eyebrow">Your tomato is</div>
+  <div class="result-label"><span class="swatch"></span><span id="result-text-label">—</span></div>
+  <p class="result-text" id="result-text"></p>
 
-<div id="recent-list" class="bg-white rounded-xl border border-gray-100 shadow-sm divide-y divide-gray-50">
-  <div id="recent-empty" class="px-6 py-8 text-center text-gray-400 text-sm">
-    No predictions yet this session.
-    <a href="/classify" class="text-red-500 hover:underline ml-1">Classify a tomato →</a>
+  <div class="confidence">
+    <div class="confidence-head">
+      <span>How sure we are</span>
+      <strong id="confidence-value">0%</strong>
+    </div>
+    <div class="meter"><div class="meter-fill" id="confidence-bar"></div></div>
+    <p class="confidence-note" id="confidence-note"></p>
+  </div>
+
+  <div class="result-actions">
+    <button type="button" id="reset-btn" class="btn btn-secondary">{{ icons.icon("refresh") }} Check another tomato</button>
   </div>
 </div>
+
+<!-- ── Recent checks (this visit only) ─────────────────────────────────── -->
+<section class="recent" id="recent" hidden>
+  <div class="recent-head">
+    <h2>Checked this visit</h2>
+    <button type="button" id="recent-clear" class="btn btn-ghost">Clear</button>
+  </div>
+  <div class="recent-list" id="recent-list"></div>
+</section>
+
+<!-- ── Tips ────────────────────────────────────────────────────────────── -->
+<section class="section">
+  <h2>Get the best result</h2>
+  <div class="tips">
+    <div class="tip">{{ icons.icon("check") }}<div><strong>One tomato</strong>Fill the frame with a single tomato.</div></div>
+    <div class="tip">{{ icons.icon("check") }}<div><strong>Good light</strong>Daylight works best — avoid heavy shadows.</div></div>
+    <div class="tip">{{ icons.icon("check") }}<div><strong>Plain background</strong>A table or countertop keeps the focus on the fruit.</div></div>
+  </div>
+</section>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="/static/js/dashboard.js"></script>
+<script src="/static/js/classify.js"></script>
 {% endblock %}
