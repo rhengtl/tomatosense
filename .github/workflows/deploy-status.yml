@@ -1,0 +1,66 @@
+name: Deployment status
+
+# Mirrors Render's auto-deploy of each push into GitHub's Deployments API so the
+# repo home page shows a "Deployments" panel with the live URL and deploy history.
+# Render still does the deploying; this workflow only watches and reports.
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  deployments: write
+  contents: read
+
+env:
+  LIVE_URL: https://tomato-sense.onrender.com
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Create GitHub deployment
+        id: create
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/deployments" \
+            -f ref="${GITHUB_SHA}" -f environment=production \
+            -F auto_merge=false -F required_contexts[] \
+            -f description="Render auto-deploy" --jq .id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/${id}/statuses" \
+            -f state=in_progress -f environment_url="$LIVE_URL" \
+            -f log_url="https://dashboard.render.com/web/${{ secrets.RENDER_SERVICE_ID }}" >/dev/null
+
+      - name: Wait for Render to finish deploying this commit
+        id: wait
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+        run: |
+          for i in $(seq 1 100); do   # up to ~17 minutes
+            status=$(curl -sf -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys?limit=10" \
+              | jq -r --arg sha "$GITHUB_SHA" '.[] | .deploy | select(.commit.id == $sha) | .status' | head -1)
+            echo "attempt $i: ${status:-not started yet}"
+            case "$status" in
+              live) echo "result=success" >> "$GITHUB_OUTPUT"; exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|canceled|deactivated)
+                echo "result=failure" >> "$GITHUB_OUTPUT"; exit 0 ;;
+            esac
+            sleep 10
+          done
+          echo "result=error" >> "$GITHUB_OUTPUT"
+
+      - name: Mark deployment result
+        if: always() && steps.create.outputs.id != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          state="${{ steps.wait.outputs.result }}"; [ -n "$state" ] || state=error
+          gh api "repos/${GITHUB_REPOSITORY}/deployments/${{ steps.create.outputs.id }}/statuses" \
+            -f state="$state" -f environment_url="$LIVE_URL" \
+            -f log_url="https://dashboard.render.com/web/${{ secrets.RENDER_SERVICE_ID }}" >/dev/null
+          echo "Deployment marked: $state"
