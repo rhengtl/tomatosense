@@ -5,6 +5,12 @@ services:
     plan: free
     buildCommand: pip install -r backend/requirements.txt
     startCommand: uvicorn backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    # Primary address. The default https://tomato-sense.onrender.com stays active as a fallback.
+    domains:
+      - tomato-sense.rhengtl.tech
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: PUBLIC_BASE_URL
+        value: https://tomato-sense.rhengtl.tech

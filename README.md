@@ -2,7 +2,7 @@
 
 TomatoSense is a FastAPI web application that tells you whether a tomato is **ripe** or **unripe** from a photo. It pairs a small machine-learning pipeline with a simple, two-page browser UI aimed at everyday users.
 
-Live app: https://tomato-sense.onrender.com
+Live app: https://tomato-sense.rhengtl.tech (fallback: https://tomato-sense.onrender.com)
 
 ## What it does
 
@@ -94,7 +94,9 @@ The script expects the dataset files to be present under `notebook/data/tomato_k
 
 The repository includes a `render.yaml` file for deployment on Render. It installs the backend dependencies and starts the app with Uvicorn.
 
-Deployed application: https://tomato-sense.onrender.com
+Deployed application: https://tomato-sense.rhengtl.tech — also reachable at https://tomato-sense.onrender.com.
+
+The custom domain is a Cloudflare `CNAME` (`tomato-sense` → `tomato-sense.onrender.com`, DNS only) added as a custom domain on the Render service. Canonical and link-preview URLs use `PUBLIC_BASE_URL` (default `https://tomato-sense.rhengtl.tech`); everything else in the app is host-agnostic.
 
 ## License
 

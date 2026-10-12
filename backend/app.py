@@ -1,4 +1,5 @@
 import hashlib
+import os
 from collections import deque
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -15,6 +16,11 @@ from fastapi.templating import Jinja2Templates
 BASE_DIR      = Path(__file__).parent
 FRONTEND_DIR  = BASE_DIR.parent / "frontend"
 PIPELINE_PATH = BASE_DIR / "models" / "pipeline.pkl"
+
+# Primary public address, used for canonical and link-preview URLs. The app itself is
+# host-agnostic (all in-app links are relative), so it is equally usable from the
+# fallback address https://tomato-sense.onrender.com.
+PUBLIC_BASE_URL = os.environ.get("PUBLIC_BASE_URL", "https://tomato-sense.rhengtl.tech").rstrip("/")
 
 ALLOWED_TYPES    = {"image/jpeg", "image/png", "image/webp", "image/bmp"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB per image (the model only needs 64×64, so this is generous)
@@ -65,6 +71,7 @@ def static_url(path: str) -> str:
 
 templates.env.globals["static_url"] = static_url
 templates.env.globals["max_batch"]  = MAX_BATCH_FILES
+templates.env.globals["public_base_url"] = PUBLIC_BASE_URL
 
 
 # ---------------------------------------------------------------------------

@@ -13,7 +13,8 @@ permissions:
   contents: read
 
 env:
-  LIVE_URL: https://tomato-sense.onrender.com
+  LIVE_URL: https://tomato-sense.rhengtl.tech       # primary address
+  FALLBACK_URL: https://tomato-sense.onrender.com   # Render default, kept as fallback
 
 jobs:
   report:
@@ -54,12 +55,28 @@ jobs:
           done
           echo "result=error" >> "$GITHUB_OUTPUT"
 
+      - name: Check both addresses serve the app
+        id: smoke
+        if: steps.wait.outputs.result == 'success'
+        run: |
+          ok=true
+          for base in "$LIVE_URL" "$FALLBACK_URL"; do
+            health=$(curl -s -m 30 --retry 5 --retry-delay 10 --retry-all-errors "$base/health" || true)
+            page=$(curl -s -m 30 -o /dev/null -w "%{http_code}" "$base/" || true)
+            if echo "$health" | jq -e '.status == "ok" and .model_loaded == true' >/dev/null 2>&1 && [ "$page" = 200 ]; then
+              echo "OK    $base"
+            else
+              echo "FAIL  $base  (health: ${health:-no response}, home page: $page)"; ok=false
+            fi
+          done
+          $ok || echo "result=failure" >> "$GITHUB_OUTPUT"
+
       - name: Mark deployment result
         if: always() && steps.create.outputs.id != ''
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          state="${{ steps.wait.outputs.result }}"; [ -n "$state" ] || state=error
+          state="${{ steps.smoke.outputs.result || steps.wait.outputs.result }}"; [ -n "$state" ] || state=error
           gh api "repos/${GITHUB_REPOSITORY}/deployments/${{ steps.create.outputs.id }}/statuses" \
             -f state="$state" -f environment_url="$LIVE_URL" \
             -f log_url="https://dashboard.render.com/web/${{ secrets.RENDER_SERVICE_ID }}" >/dev/null
